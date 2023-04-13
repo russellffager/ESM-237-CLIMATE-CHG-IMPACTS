@@ -1,0 +1,102 @@
+---
+title: "HW_2_extremes"
+author: "Russell Fager, Charlie Wilson, Tommy King"
+date: "2023-04-13"
+output: html_document
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE)
+library(lubridate)
+library(tidyverse)
+```
+### Getting Started: set up environment
+
+The packages we will need for this analysis are (same as for the trend demo):
+
+* lubridate: makes it easier to work with date information and use it in plotting
+* tidyverse: a suite of R packages designed to optimize working with "tidy" data. This package contains other ones, including the `ggplot2` package that helps with making nice-looking graphs!
+
+
+### Reading in data
+
+The first thing to do is to read in some data. Here, I've chosen the Lake Cachuma station from the National Centers for Environmental Information website:
+https://www.ncdc.noaa.gov/cdo-web/datatools/findstation
+
+This is the same dataset used for the trends demo. Let's read in the data again!
+
+In the code block below, the read.table command loads the CSV file provided by NCDC into a table structure in R, here called 'clim'; this particular file happens to be comma-delimited, so we specify `sep=','` to let R determine which data fits in separate entries in the table. We can also fill in empty entries with "NA" by setting `fill=TRUE`, and let R make sense of the file header by setting `header=T`.
+
+Once the data has been read in, the as.Date command then transforms the DATE field in that table into an R-formatted date array that R knows how to do things with.
+
+We can look at the data that we've read in using the `head` command; this will display the first few rows of the table so we can see if everything makes sense.
+
+
+```{r readdata}
+clim = read.table("3300187.csv",fill=TRUE,sep=',',header=T)
+head(clim)
+
+date=as.Date(clim$DATE)
+
+
+```
+
+### Extremes metrics: number of freezing days
+
+We'll look at a couple different examples of metrics for extremes. First, let's take the number of freezing days: this is defined as the number of days (per year) with minimum temperatures below freezing. Here the data is in degrees Fahrenheit, so we'll select all days where the `TMIN` field in our data table is below 32.
+
+The code block below assigns a new field to the `clim` table, called "freeze": this is defined using the `ifelse` statement. Ifelse is a handy R function which returns one value if a logical statement passed to the function is true, and a different one if the statement is false. In this case, we're telling R to evaluate the statement "is the minimum temperature below 32F?": if yes, clim$freeze is assigned a value of 1, and if no, it's assigned a value of zero.
+
+Once the ifelse statement has been completed, the next thing the code below does is make use of the `group_by` and `summarize` functions to count the number of freezing days! This is done in two steps:
+
+* Grouping the data by year (`clim %>% group_by(year(date))`)
+* Then passing the grouped data to `summarize` and totaling up the number of times during each year when the minimum temperature is below 32 (recall that the `freeze` field is 1 each time this is true! that makes it easy to count days, simply by adding up all the ones)
+
+The times that go along with the (now yearly!) number of freezing days are calculated by finding all the unique years in the dataset (`unique(year(date))`) and assigned to another new field in the data table called `dt`.
+
+Finally, the number of freezing days is plotted using ggplot, as we did for the trends demo.
+
+
+```{r other metrics, echo=TRUE}
+
+clim$freeze = ifelse(clim$TMIN <= 32, 1, 0)
+clim.wfrdata = clim %>% group_by(year(date)) %>% summarize(ndayfr=sum(freeze))
+clim.wfrdata$dt = unique(year(date))
+
+ggplot(clim.wfrdata, aes(dt, ndayfr))+geom_point()+labs(y="Number of Freezing Days")
+```
+
+Note that the trends in mean-state and extreme metrics often go together: from last time, recall that there was a trend toward decreasing minimum daily temperature. How does that affect the frequency of occurrence of freezing days?
+
+
+### Extremes metrics: hottest day of the year
+
+Looking at the warm end of the temperature distribution, we can now look for trends in the temperature during the hottest day of the year.
+
+This is accomplished using a similar methodology as we used for the freezing days above; again, the group_by function groups the data according to year, then the temperature associated with the hottest day is calculated by applying the `max` function to the `TMAX` field in the data table.
+
+```
+clim.pk = clim %>% group_by(year(date)) %>% summarize(hotday=max(TMAX))
+clim.pk$dt = unique(year(date))
+
+ggplot(clim.pk, aes(dt, hotday))+geom_point()+labs(y="Hottest Day in the Year")
+```
+
+### Extremes metrics: return periods
+
+In lecture, we discussed the concept of return periods and return levels. Here is how you calculate these things with real data!
+
+We'll specify some reasonable threshold for daily precipitation: say, 1 inch/day. To calculate the return period associated with that threshold, what we do is the following:
+* Use `ifelse` to create a field called "flood" that is 1 when precipitation is above the threshold, and 0 otherwise
+* Store the total number of years by first identifying the total number of unique years, then calculating the length of the array where those unique years are listed
+
+The return period is then the number of years (plus one to include the starting year) divided by the number of times the threshold exceedance has actually occurred. (Note: we have to use the `na.rm=TRUE` flag to prevent NA entries from seeming like they are contributing to the count of threshold exceedances!)
+
+``` {r return period}
+clim$flood = ifelse(clim$PRCP >= 1, 1, 0)
+nyrs=length(unique(year(date)))
+
+retper=(nyrs+1)/sum(clim$flood,na.rm=TRUE)
+```
+
+Another note: return *levels* are somewhat more complicated to calculate, since they require fitting the underlying distribution of the data... there are lots of resources out there if you need them though!
