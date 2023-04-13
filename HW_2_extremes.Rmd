@@ -33,7 +33,7 @@ We can look at the data that we've read in using the `head` command; this will d
 
 
 ```{r readdata}
-clim = read.table("3300187.csv",fill=TRUE,sep=',',header=T)
+clim = read.table("data/3300187.csv",fill=TRUE,sep=',',header=T)
 head(clim)
 
 date=as.Date(clim$DATE)
