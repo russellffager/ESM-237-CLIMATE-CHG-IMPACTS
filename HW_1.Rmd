@@ -28,8 +28,9 @@ library(lubridate)
 library(tidyverse)
 library(Kendall)
 
-clim = read.table("3300187.csv",fill=TRUE,sep=',',header=T)
+clim = read.table("data/3300187.csv",fill=TRUE,sep=',',header=T)
 head(clim)
+
 ```
 
 The data looks reasonable - the head command should output fields like "Station", "Date", and "PRCP" (where PRCP = precipitation). _When you run this for your own data, you may end up with different fields, depending on what you downloaded from the NCDC website!_
